@@ -21,11 +21,12 @@ process CUTADAPT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def trimmed  = meta.single_end ? "-o ${prefix}.trim.fastq.gz" : "-o ${prefix}_1.trim.fastq.gz -p ${prefix}_2.trim.fastq.gz"
     """
     cutadapt \\
         --cores $task.cpus \\
         $args \\
-        -o ${prefix}.trim.fastq.gz \\
+        $trimmed \\
         $reads \\
         > ${prefix}.cutadapt.log
     cat <<-END_VERSIONS > versions.yml

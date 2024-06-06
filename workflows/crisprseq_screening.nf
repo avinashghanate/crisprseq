@@ -110,8 +110,12 @@ workflow CRISPRSEQ_SCREENING {
         ch_versions = ch_versions.mix(CUTADAPT.out.versions)
 
         CUTADAPT.out.reads
-        .map{ meta, fastq  ->
-            [meta, [fastq]]
+        .map{ meta, fastqs  ->
+            if(fastqs.size() == 1){
+                [meta, [fastqs]]
+            } else {
+                [meta, [fastqs[0], fastqs[1]]]
+            }
         }
         .set { ch_input }
         }
