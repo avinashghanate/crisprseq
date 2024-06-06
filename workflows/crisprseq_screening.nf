@@ -56,6 +56,10 @@ ch_multiqc_custom_methods_description = params.multiqc_methods_description ? fil
 //
 include { FASTQC                      } from '../modules/nf-core/fastqc/main'
 include { CUTADAPT                    } from '../modules/nf-core/cutadapt/main'
+include { LIBRARY_REFERENCE           } from '../modules/local/library_reference'
+include { BOWTIE2_ALIGN               } from '../modules/nf-core/bowtie2/align/main'
+include { BOWTIE2_BUILD               } from '../modules/nf-core/bowtie2/build/main'
+include { BAM_REDUCE_READS            } from '../modules/local/bam_reduce_reads'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { MAGECK_COUNT                } from '../modules/nf-core/mageck/count/main'
 include { MAGECK_MLE                  } from '../modules/nf-core/mageck/mle/main'
@@ -118,6 +122,49 @@ workflow CRISPRSEQ_SCREENING {
             }
         }
         .set { ch_input }
+        }
+
+        // This is to generate library reference fasta file for indexing
+        if(params.mismatch_library > 0) {
+            ch_input_library  = [[], [ch_library]]
+            // build bowtie2 index from input library file
+            LIBRARY_REFERENCE(
+                ch_input_library
+            )
+
+            BOWTIE2_BUILD (
+                LIBRARY_REFERENCE.out.reference
+            )
+            ch_versions = ch_versions.mix(BOWTIE2_BUILD.out.versions)
+
+            // run bowtie2 to map reads and generate bam files without saving unaligned and without sorting
+            BOWTIE2_ALIGN (
+                ch_input,
+                BOWTIE2_BUILD.out.index,
+                false,
+                false
+            )
+
+            ch_bowtie_aligned = BOWTIE2_ALIGN.out.aligned
+            ch_versions = ch_versions.mix(BOWTIE2_ALIGN.out.versions)
+
+            // This is similar to mageck's count_pair option for paired end fasta inputs
+            // If count_pair is set to false, only one read from the pair will be selected for counting. When 'unique_read_sgRNA_pair' is set to true, one unique read-sgRNA pair will be selected for counting.
+            if(!params.count_pair) {
+                BAM_REDUCE_READS(
+                    ch_bowtie_aligned,
+                    params.unique_read_sgRNA_pair
+                )
+                ch_bowtie_aligned = BAM_REDUCE_READS.out.reduced
+                ch_versions = ch_versions.mix(BAM_REDUCE_READS.out.versions)
+            }
+
+            // Prepare ch_input for MAGECK
+            ch_bowtie_aligned
+            .map{ meta, fastqs  ->
+                [meta, [fastqs]]
+            }
+            .set { ch_input }
         }
 
         // this is to concatenate everything for mageck count
@@ -275,6 +322,9 @@ workflow CRISPRSEQ_SCREENING {
         ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
     } else {
         ch_multiqc_files = channel.empty()
+    }
+    if  (params.cutadapt) {
+        ch_multiqc_files = ch_multiqc_files.mix(CUTADAPT.out.log.collect{it[1]}.ifEmpty([]))
     }
 
     MULTIQC (

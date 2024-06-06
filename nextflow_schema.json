@@ -187,6 +187,22 @@
                     "type": "string",
                     "description": "cut adapter for screening analysis"
                 },
+                "mismatch_library": {
+                    "type": "integer",
+                    "description": "Maximum allowed mismatches within the sgRNA library sequences. Bowtie2 alignment will be used to align reads with the indexed library.",
+                    "default": 0,
+                    "help_text": "Use to set an upper-limit for the number of mismatches within the sgRNA library sequences. Should be an integer e.g. `--mismatch_library 1`"
+                },
+                "count_pair": {
+                    "type": "boolean",
+                    "description": "Count both reads from paired end sequencing data towards total count.",
+                    "help_text": "If count_pair is set to false, only one read from the pair will be selected for counting. When `unique_read_sgRNA_pair` is set to true, one unique read-sgRNA pair will be selected for counting."
+                },
+                "unique_read_sgRNA_pair": {
+                    "type": "boolean",
+                    "description": "If `count_pair` is set to false, one unique read-sgRNA pair will be selected for counting.",
+                    "help_text": "By default if `count_pair` is set to false, only one unique read from paired end will be used for counting. This parameter will allow different alignment from individual paired reads."
+                },
                 "min_reads": {
                     "type": "number",
                     "description": "a filter threshold value for sgRNAs, based on their average counts in the control sample",
